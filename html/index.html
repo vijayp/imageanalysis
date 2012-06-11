@@ -1,0 +1,30 @@
+<head>
+<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/base/jquery-ui.css" />
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6/jquery.min.js"></script><script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+<script src="year_data.js"></script>
+<script src="indexmain.js"></script>
+
+    <style>
+    .ui-widget-content { border: 1px solid #ccc; background: #ff9900  50% 50% repeat-x; color: #222222; }
+    .ui-widget-header { border: 1px solid #aaaaaa; background: #797979  50% 50% repeat-x; color: #222222; font-weight: bold; }
+
+    .ui-slider { position: relative; text-align: left; }
+    .ui-slider .ui-slider-handle { position: absolute; z-index: 2; width: 1.2em; height: 1.2em; cursor: default; }
+    .ui-slider .ui-slider-range { position: absolute; z-index: 1; font-size: .7em; display: block; border: 0; background-position: 0 0; }
+
+    .ui-slider-horizontal { height: .8em; }
+    .ui-slider-horizontal .ui-slider-handle { top: -.3em; margin-left: -.6em; }
+    .ui-slider-horizontal .ui-slider-range { top: 0; height: 100%;  }
+    .ui-slider-horizontal .ui-slider-range-min { left: 0;  }
+    .ui-slider-horizontal .ui-slider-range-max { right: 0;}
+    </style></head><body>
+
+<span="imagetitle"><h1>Colour distribution for movie posters in <span id='year'></span></h1></span>
+<p>Here is my post on: <a href="/blog/?p=214">Colours in Movie Posters since 1914</a></p>
+<p> This page shows the relative proportion of each colour in all movie posters in the above year.  Drag this slider to change the year:<br>
+<div id="year_slider"></div>
+<br>
+Here is <a href="new_page.html"> a visualization of the colour distribution across all years.</a><br>
+<table> <tr><td style="vertical-align:top"><img id="image" width="650px" height="400px"></td><td style="vertical-align:top"><div id='movies'>MOVIES</div></td></tr><table> <br>
+           
+</body>

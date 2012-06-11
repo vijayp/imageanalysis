@@ -1,0 +1,28 @@
+<head>
+<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8.16/themes/base/jquery-ui.css" />
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6/jquery.min.js"></script><script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+<script src="year_data.js"></script>
+<script src="main.js"></script>
+
+<style type="text/css">
+.hovering {
+  margin-top:1px;
+  margin-bottom:1px;
+	cursor: pointer;
+}
+
+</style>
+
+</head>
+<body>
+<h2> Distribution of colours in movie posters between 1914 and 2012</h2>
+<p>Here is my post on: <a href="/blog/?p=214">Colours in Movie Posters since 1914</a></p>
+<p>Click on any year to see detailed information.
+
+<a href='#' id="show_detail"> Show detailed colours </a>
+<a href='#' id="show_nondetail"> Show generic colours </a>
+</p>
+
+<div id="everything_detail"></div>
+<div id="everything_nodetail"></div>
+</body>
