@@ -16,9 +16,10 @@ class MyCustomCrawler(HarvestMan):
         if ('/poster' not in ustr):
             return False
 
-        if url.is_document() or (url.is_image() and re.search('[/]t_[^_]+_[^_.]*.jpg',ustr)):
+        if url.is_document() or url.is_cgi() or (url.is_image() and re.search('[/]t_[^_]+_[^_.]*.jpg',ustr)):
             
             return True
+        print 'rejecting ', ustr
         return False
 
 
