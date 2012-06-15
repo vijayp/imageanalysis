@@ -28,6 +28,8 @@ if __name__ == "__main__":
     crawler.initialize()
     # Get the configuration object
     config = crawler.get_config()
+    config.USER_AGENT='Firefox/v3.5'
+
     # Register for 'save_url_data' event which will be called
     # back just before a URL is saved to disk
     crawler.register('save_url_data', crawler.save_this_url)
