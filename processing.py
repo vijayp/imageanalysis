@@ -1,10 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Copyright Vijay Pandurangan (vijayp@vijayp.ca) 2012
 # Apache 2.0 Licence
 
 from PIL import Image, ImageDraw, ImageFont
-from GChartWrapper import Pie
-import cPickle
+#from GChartWrapper import Pie
+import pickle
 from collections import defaultdict
 import colorsys
 import argparse
@@ -12,9 +12,9 @@ import sys
 import os
 import json
 
-GREY = 'grey'
-BLACK = 'black'
-WHITE = 'white'
+GREY = -2
+BLACK = -1
+WHITE = -3
 HUE_DEGREES_NAME = {
     GREY: 'grey',
     BLACK: 'black',
@@ -41,7 +41,7 @@ def get_html_colour_from_hue(h):
         return 'ffffff'
         
     rgb = colorsys.hls_to_rgb(h/360.0,0.5,0.5)
-    return '%02x%02x%02x' % (rgb[0]*255,rgb[1]*255,rgb[2]*255)
+    return '%02x%02x%02x' % (int(rgb[0]*255),int(rgb[1]*255),int(rgb[2]*255))
     
 get_pil_clist = lambda fn:Image.open(fn).getcolors(1<<20)
 remove_rare_colors = lambda l: [x for x in l if x[0] > 2]
@@ -70,7 +70,7 @@ def SetCLA():
 class ImageDataAggregator(object):
     def  __init__(self, max_possible_colours):
         self._numcolours = max_possible_colours
-        self._accumulator = [[0,0,0] for _ in xrange((max_possible_colours+3))]
+        self._accumulator = [[0,0,0] for _ in range((max_possible_colours+3))]
         self._white_index = max_possible_colours
         self._grey_index = max_possible_colours + 1
         self._black_index = max_possible_colours + 2
@@ -83,28 +83,28 @@ class ImageDataAggregator(object):
                rgb[2]/MAX_VALUE)
         try:
             h,l,s = colorsys.rgb_to_hls(*rgb)
-        except ZeroDivisionError, e:
-            print e
+        except ZeroDivisionError as e:
+            print(e)
             return 
         
         key = None
         if l > BRIGHTEST:
             key = self._white_index
-            self._colour_counts['white'] += count
+            self._colour_counts[WHITE] += count
         elif GREY_BORDER > l > BLACK_BORDER: 
             key = self._grey_index
-            self._colour_counts['grey'] += count
+            self._colour_counts[GREY] += count
         elif BLACK_BORDER > l:
             key = self._black_index
-            self._colour_counts['black'] += count
+            self._colour_counts[BLACK] += count
         elif s < SATURATION_GREY:
             key = self._grey_index
-            self._colour_counts['grey'] += count
+            self._colour_counts[GREY] += count
         else:
             key = int(self._numcolours*h)
             hue_degrees = h * 360 
             dists = []
-            for k,v in HUE_DEGREES_NAME.items():
+            for k,v in list(HUE_DEGREES_NAME.items()):
                 if isinstance(k, str): 
                     continue
                 
@@ -120,7 +120,12 @@ class ImageDataAggregator(object):
 #        print key, count, l, s, self._accumulator[key]
 
     def AddImage(self, filename):
-        map(self._ProcessPixel, get_pil_clist(filename))
+        try:
+            for i in get_pil_clist(filename):
+                self._ProcessPixel(i)
+        except:
+            pass
+          #map(self._ProcessPixel, get_pil_clist(filename))
             
     
     def RGBWeightItems(self,ignore_grey=False,
@@ -128,11 +133,11 @@ class ImageDataAggregator(object):
                        ignore_lightness=False,
                        ignore_saturation=False):
         if ignore_grey:
-            binrange = xrange(0, self._numcolours)
+            binrange = range(0, self._numcolours)
         elif ignore_colour:
-            binrange = xrange(self._numcolours, self._numcolours+3)
+            binrange = range(self._numcolours, self._numcolours+3)
         else:
-            binrange = xrange((self._numcolours+3))
+            binrange = range((self._numcolours+3))
         total_count = float(sum([self._accumulator[x][0] for x in binrange]))
         rv = []
         for bin in binrange:
@@ -174,11 +179,11 @@ class ImageDataAggregator(object):
     #del canvas
     #image.save(outfn, 'PNG')
     def SaveToFile(self, ofile):
-        cPickle.dump(self, open(ofile, 'wb'))
+        pickle.dump(self, open(ofile, 'wb'))
     
     @staticmethod
     def CreateFromFile(ifile):
-        return cPickle.load(open(ifile, 'r'))
+        return pickle.load(open(ifile, 'rb'))
 
     def DrawOnCanvas(self, height, width, hbase, canvas,
                      ignore_grey, ignore_colour, label=None,
@@ -208,10 +213,10 @@ class ImageDataAggregator(object):
             boxwidth = int(boxwidth)
             if not boxwidth: 
                 continue
-            rgb = tuple(map(lambda x:int(MAX_VALUE*x),rgb))
+            rgb = tuple([int(MAX_VALUE*x) for x in rgb])
 #            print map(hex, rgb), weight
-            canvas.rectangle(map(int,(right_edge,hbase,
-                             right_edge+boxwidth, hbase + height,)),
+            canvas.rectangle(list(map(int,(right_edge,hbase,
+                             right_edge+boxwidth, hbase + height,))),
                              fill=rgb, outline=rgb)
             right_edge += boxwidth
 
@@ -228,12 +233,13 @@ class ImageDataAggregator(object):
                           ignore_saturation=ignore_saturation
                           )
         del canvas
-        print 'writing to %s' % outfn
+        print('writing to %s' % outfn)
         image.save(outfn, 'PNG')
         cnames = []
         ccolours = []
         ccounts = []
         tt = sum(self._colour_counts.values())
+        #assert 0, self._colour_counts.items()
         for (k,v) in sorted(self._colour_counts.items()):
             pct = 100.0*v/tt
             cnames.append(HUE_DEGREES_NAME[k] + '(%2.1f%%)' % pct)
@@ -264,7 +270,7 @@ def aggregate(paths):
         for f in files:
             if f.startswith('t_') and f.endswith('jpg'):
                 fn = os.path.join(path, f)
-                print fn
+                print(fn)
                 ida.AddImage(fn)
     return ida
 
@@ -304,6 +310,6 @@ if __name__ == '__main__':
                                       igs
                                       )
                   json.dump(cc, 
-                            open(fnbase + '.json','wb'))
+                            open(fnbase + '.json','w'))
 
 
