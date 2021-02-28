@@ -11,7 +11,11 @@ import argparse
 import sys
 import os
 import json
+import threading
+from multiprocessing.pool import Pool
+import multiprocessing
 
+MAX_COLOURS = 1280
 GREY = -2
 BLACK = -1
 WHITE = -3
@@ -71,12 +75,14 @@ class ImageDataAggregator(object):
     def  __init__(self, max_possible_colours):
         self._numcolours = max_possible_colours
         self._accumulator = [[0,0,0] for _ in range((max_possible_colours+3))]
+        self._colour_counts = defaultdict(int)
         self._white_index = max_possible_colours
         self._grey_index = max_possible_colours + 1
         self._black_index = max_possible_colours + 2
-        self._colour_counts = defaultdict(int)
 
-    def _ProcessPixel(self, count_rgb):
+
+    @staticmethod
+    def _ProcessPixel(count_rgb, accumulator, colour_counts, white_index, grey_index, black_index, numcolours):
         count, rgb = count_rgb
         rgb = (rgb[0]/MAX_VALUE,
                rgb[1]/MAX_VALUE,
@@ -89,44 +95,58 @@ class ImageDataAggregator(object):
         
         key = None
         if l > BRIGHTEST:
-            key = self._white_index
-            self._colour_counts[WHITE] += count
+            key = white_index
+            colour_counts[WHITE] += count
         elif GREY_BORDER > l > BLACK_BORDER: 
-            key = self._grey_index
-            self._colour_counts[GREY] += count
+            key = grey_index
+            colour_counts[GREY] += count
         elif BLACK_BORDER > l:
-            key = self._black_index
-            self._colour_counts[BLACK] += count
+            key = black_index
+            colour_counts[BLACK] += count
         elif s < SATURATION_GREY:
-            key = self._grey_index
-            self._colour_counts[GREY] += count
+            key = grey_index
+            colour_counts[GREY] += count
         else:
-            key = int(self._numcolours*h)
+            key = int(numcolours*h)
             hue_degrees = h * 360 
             dists = []
             for k,v in list(HUE_DEGREES_NAME.items()):
-                if isinstance(k, str): 
+                if k in {WHITE, GREY, BLACK}: 
                     continue
                 
                 dists.append((abs(hue_degrees - k),k))
             md = min(dists)[1]
 
             if md == 360: md = 0
-            self._colour_counts[md] += 1
+            colour_counts[md] += 1
             
-        self._accumulator[key][0] += count
-        self._accumulator[key][1] += l
-        self._accumulator[key][2] += s
+        accumulator[key][0] += count
+        accumulator[key][1] += l
+        accumulator[key][2] += s
 #        print key, count, l, s, self._accumulator[key]
+        return colour_counts, accumulator
 
     def AddImage(self, filename):
+        print('Processing %s' % filename)
+        local_accumulator = [[0,0,0] for _ in range((self._numcolours + 3))]
+        local_colour_counts = defaultdict(int)
+
         try:
             for i in get_pil_clist(filename):
-                self._ProcessPixel(i)
-        except:
+                local_colour_counts, local_accumulator = ImageDataAggregator._ProcessPixel(
+                    i, 
+                    local_accumulator, 
+                    local_colour_counts,
+                    self._white_index, 
+                    self._grey_index, 
+                    self._black_index,
+                    self._numcolours)
+        except Exception as e:
             pass
-          #map(self._ProcessPixel, get_pil_clist(filename))
-            
+
+        print('%s complete!' % filename)
+
+        return (local_colour_counts, local_accumulator)
     
     def RGBWeightItems(self,ignore_grey=False,
                        ignore_colour=False,
@@ -251,6 +271,18 @@ class ImageDataAggregator(object):
             return pc.url
         except:
             return '#'
+
+
+    def increment(self, local_colour_counts, local_accumulator):
+        # atomically update the data structures
+        for k, v in local_colour_counts.items():
+            self._colour_counts[k] += v
+        
+        for idx in range(len(local_accumulator)):
+            for i in range(3):
+                self._accumulator[idx][i] += local_accumulator[idx][i]
+        #map(self._ProcessPixel, get_pil_clist(filename))
+            
         
         
 
@@ -264,14 +296,19 @@ def image_as_sparse_vector(fn):
 
 def aggregate(paths):
 
-    ida = ImageDataAggregator(1280)
+    p = Pool(multiprocessing.cpu_count()*2)
+    ida = ImageDataAggregator(MAX_COLOURS)
+    files = []
     for path in paths:
       for (path, dirs, files) in os.walk(path):
         for f in files:
             if f.startswith('t_') and f.endswith('jpg'):
-                fn = os.path.join(path, f)
-                print(fn)
-                ida.AddImage(fn)
+                files.append(os.path.join(path, f))
+
+    pool_output = p.map(ida.AddImage, files)
+    p.close()
+    for output in pool_output:
+        ida.increment(*output)
     return ida
 
 if __name__ == '__main__':
@@ -284,7 +321,7 @@ if __name__ == '__main__':
   if args.cpkin:
       ida = ImageDataAggregator.CreateFromFile(args.cpkin)
   else:
-      ida = aggregate (args.files)
+      ida = aggregate(args.files)
       ida.SaveToFile(args.cpkout)
   for ig in {True, False}:
       for ic in {True, False}:
@@ -302,7 +339,7 @@ if __name__ == '__main__':
                           make_name(igs),
                           args.label))
                       
-                  cc = ida.DrawToFile(10, 1280, fnbase + '.png',
+                  cc = ida.DrawToFile(10, MAX_COLOURS, fnbase + '.png',
                                       ig, 
                                       ic, 
                                       args.label,
